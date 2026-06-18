@@ -23,6 +23,7 @@ Alt1 Toolkit must already be installed. Open the link on the computer running Ru
 - Automatic chatbox detection of Nex phase and mechanic dialogue
 - Fixed-rotation prediction for Smoke, Shadow, Blood, and Ice specials
 - Recommended protection prayer for each phase
+- Optional movable prayer overlay drawn directly over the RuneScape client
 - Mechanic-specific movement and defensive suggestions
 - Blood Siphon stop-damage warning
 - Blood Sacrifice movement warning
@@ -32,6 +33,7 @@ Alt1 Toolkit must already be installed. Open the link on the computer running Ru
 - Compact fight view
 - Optional spoken urgent calls
 - Saved local settings
+- Retry-based chatbox detection with linking, permission, and library diagnostics
 - Diagnostics and a local event simulator
 - Two-click confirmation for fight resets and local-data deletion
 
@@ -55,7 +57,7 @@ For the most reliable chat detection:
 
 ## Testing
 
-The repository has no local build step. It loads pinned browser bundles for the official Alt1 packages from jsDelivr at runtime.
+The repository has no local build step. It loads the pinned `alt1` 0.1.3 browser bundles from jsDelivr at runtime.
 
 Run the local state-machine tests with:
 
@@ -84,9 +86,11 @@ Basic Nex currently recognizes the main Nex dialogue for:
 
 OCR matching ignores capitalization, punctuation, apostrophes, and timestamps.
 
-## Development direction
+## Prayer overlay placement
 
-The next practical detection layer is optional screen calibration for boss-health thresholds and a movable overlay anchor. That would improve phase recovery when a dialogue line is missed. Exact game-tile highlighting should remain opt-in because it depends heavily on camera and interface configuration.
+Enable **Show prayer as a RuneScape screen overlay** in Settings. Select **Move prayer overlay**, move the mouse to the desired location inside RuneScape, then return to Basic Nex and select **Lock prayer overlay**. The saved position is reused the next time the app opens.
+
+The next practical detection layer is optional screen calibration for boss-health thresholds. That would improve phase recovery when a dialogue line is missed. Exact game-tile highlighting should remain opt-in because it depends heavily on camera and interface configuration.
 
 ## License
 

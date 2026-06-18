@@ -1,6 +1,6 @@
 {
   "name": "basic-nex",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Alt1 solo and duo Nex encounter helper.",
@@ -8,6 +8,6 @@
   "license": "MIT",
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/app.js && node --check src/engine.js && node --check src/chat-reader.js && node --check src/encounter-data.js"
+    "check": "node --check src/app.js && node --check src/engine.js && node --check src/chat-reader.js && node --check src/prayer-overlay.js && node --check src/encounter-data.js"
   }
 }

@@ -1,16 +1,21 @@
-import { NexEncounterEngine } from "./engine.js";
-import { SIMULATOR_EVENTS } from "./encounter-data.js";
-import { NexChatReader } from "./chat-reader.js";
-import { clearSettings, loadSettings, saveSettings } from "./settings.js";
+import { NexEncounterEngine } from "./engine.js?v=0.1.2";
+import { SIMULATOR_EVENTS } from "./encounter-data.js?v=0.1.2";
+import { NexChatReader } from "./chat-reader.js?v=0.1.2";
+import { clearSettings, loadSettings, saveSettings } from "./settings.js?v=0.1.2";
+import { PrayerOverlay } from "./prayer-overlay.js?v=0.1.2";
 
 const $ = (id) => document.getElementById(id);
 const engine = new NexEncounterEngine();
 const chatReader = new NexChatReader();
+const prayerOverlay = new PrayerOverlay();
 let settings = loadSettings();
 let resetDataArmed = false;
 let resetFightArmed = false;
 let logLines = [];
 let lastSpokenEvent = null;
+let chatFindRetryTimer = null;
+let chatFindAttempts = 0;
+let chatFindInProgress = false;
 
 const elements = {
   app: $("app"), readerStatus: $("readerStatus"), phaseLabel: $("phaseLabel"), modeLabel: $("modeLabel"),
@@ -20,7 +25,10 @@ const elements = {
   abilityBody: $("abilityBody"), targetName: $("targetName"), targetNote: $("targetNote"),
   positionTitle: $("positionTitle"), positionBody: $("positionBody"), positionBadge: $("positionBadge"),
   duoAdvice: $("duoAdvice"), arenaMap: $("arenaMap"), diagAlt1: $("diagAlt1"),
-  diagChatFound: $("diagChatFound"), diagLastEvent: $("diagLastEvent"), diagLastLine: $("diagLastLine"),
+  diagChatFound: $("diagChatFound"), diagRsLinked: $("diagRsLinked"),
+  diagPixelPermission: $("diagPixelPermission"), diagChatLibrary: $("diagChatLibrary"),
+  diagPrayerOverlay: $("diagPrayerOverlay"), diagLastEvent: $("diagLastEvent"), diagLastLine: $("diagLastLine"),
+  prayerOverlayStatus: $("prayerOverlayStatus"), movePrayerOverlayButton: $("movePrayerOverlayButton"),
   eventLog: $("eventLog")
 };
 
@@ -37,6 +45,12 @@ function applySettingsToForm() {
   }
   $("duoRoleRow").classList.toggle("hidden", settings.teamSize !== "duo");
   elements.app.classList.toggle("compact", settings.compact);
+  prayerOverlay.configure({
+    enabled: settings.showPrayerOverlay,
+    x: settings.prayerOverlayX,
+    y: settings.prayerOverlayY
+  });
+  updateOverlayControls();
 }
 
 function readSettingsFromForm() {
@@ -51,12 +65,19 @@ function readSettingsFromForm() {
     showPosition: $("showPosition").checked,
     voiceAlerts: $("voiceAlerts").checked,
     autoFindChat: $("autoFindChat").checked,
+    showPrayerOverlay: $("showPrayerOverlay").checked,
     customDefensive: $("customDefensive").value.trim(),
     customMovement: $("customMovement").value.trim(),
     customBurst: $("customBurst").value.trim()
   };
   saveSettings(settings);
   $("duoRoleRow").classList.toggle("hidden", settings.teamSize !== "duo");
+  prayerOverlay.configure({
+    enabled: settings.showPrayerOverlay,
+    x: settings.prayerOverlayX,
+    y: settings.prayerOverlayY
+  });
+  updateOverlayControls();
   render();
 }
 
@@ -106,6 +127,45 @@ function render() {
 
   elements.diagLastEvent.textContent = engine.state.lastEvent || "None";
   elements.diagLastLine.textContent = engine.state.lastRawLine || "None";
+  prayerOverlay.update(vm.phase.prayer, vm.phase.prayerIcon);
+  updateDiagnostics();
+}
+
+function updateDiagnostics() {
+  if (elements.diagRsLinked) elements.diagRsLinked.textContent = hasAlt1() && window.alt1.rsLinked ? "Yes" : "No";
+  if (elements.diagPixelPermission) elements.diagPixelPermission.textContent = hasAlt1() && window.alt1.permissionPixel ? "Yes" : "No";
+  if (elements.diagChatLibrary) {
+    const available = Boolean(window.Chatbox?.default || window.Chatbox?.ChatBoxReader || typeof window.Chatbox === "function");
+    elements.diagChatLibrary.textContent = available ? "Loaded" : "Missing";
+  }
+  if (elements.diagPrayerOverlay) {
+    elements.diagPrayerOverlay.textContent = settings.showPrayerOverlay
+      ? (prayerOverlay.isAvailable() ? "Enabled" : "Permission unavailable")
+      : "Disabled";
+  }
+}
+
+function updateOverlayControls() {
+  if (!elements.movePrayerOverlayButton || !elements.prayerOverlayStatus) return;
+  const enabled = Boolean(settings.showPrayerOverlay);
+  elements.movePrayerOverlayButton.disabled = !enabled || !prayerOverlay.isAvailable();
+  elements.movePrayerOverlayButton.textContent = prayerOverlay.placing ? "Lock prayer overlay" : "Move prayer overlay";
+  if (!enabled) {
+    elements.prayerOverlayStatus.textContent = "Enable the overlay to place it on the RuneScape screen.";
+  } else if (!prayerOverlay.isAvailable()) {
+    elements.prayerOverlayStatus.textContent = "Alt1 overlay permission is unavailable.";
+  } else if (prayerOverlay.placing) {
+    elements.prayerOverlayStatus.textContent = "Move the mouse over RuneScape, then return here and click Lock prayer overlay.";
+  } else {
+    elements.prayerOverlayStatus.textContent = `Position: ${prayerOverlay.x}, ${prayerOverlay.y}`;
+  }
+}
+
+function savePrayerOverlayPosition() {
+  settings.prayerOverlayX = prayerOverlay.x;
+  settings.prayerOverlayY = prayerOverlay.y;
+  saveSettings(settings);
+  updateOverlayControls();
 }
 
 function getDuoAdvice(phase, mechanic, role) {
@@ -128,19 +188,59 @@ function speakIfNeeded() {
   window.speechSynthesis?.speak(new SpeechSynthesisUtterance(vm.title));
 }
 
-async function findChatbox() {
+function stopChatFindRetries() {
+  if (chatFindRetryTimer) window.clearTimeout(chatFindRetryTimer);
+  chatFindRetryTimer = null;
+  chatFindAttempts = 0;
+}
+
+async function findChatbox({ retry = true } = {}) {
+  if (chatFindInProgress) return;
   if (!hasAlt1()) {
     setReaderStatus("offline", "Open inside Alt1");
     log("Alt1 API was not detected. The simulator remains available in Diagnostics.");
     return;
   }
+  updateDiagnostics();
+  if (!window.alt1.permissionPixel) {
+    setReaderStatus("offline", "Pixel permission required");
+    log("Pixel permission is not available. Reinstall the app or approve pixel access in Alt1.");
+    return;
+  }
+  if (!window.alt1.rsLinked) {
+    setReaderStatus("offline", "RuneScape not linked");
+    log("Alt1 is open, but it is not linked to the RuneScape client.");
+    return;
+  }
+
+  chatFindInProgress = true;
   try {
-    setReaderStatus("searching", "Loading chat reader");
-    const found = await chatReader.find();
-    if (!found) log("Chatbox not found. Make sure game messages are visible and the chatbox is not covered.");
+    setReaderStatus("searching", chatFindAttempts ? `Finding chatbox (${chatFindAttempts + 1}/8)` : "Loading chat reader");
+    const found = chatReader.find();
+    if (found) {
+      stopChatFindRetries();
+      log("Chat reader is online and scanning visible chat messages.");
+      return;
+    }
+
+    chatFindAttempts += 1;
+    if (retry && chatFindAttempts < 8) {
+      setReaderStatus("searching", `Waiting for visible chatbox (${chatFindAttempts}/8)`);
+      if (chatFindAttempts === 1) {
+        log("No supported chatbox anchor was visible. Basic Nex will retry automatically.");
+      }
+      chatFindRetryTimer = window.setTimeout(() => findChatbox({ retry: true }), 1500);
+    } else {
+      setReaderStatus("offline", "Chatbox not found");
+      log("Chatbox search ended. Keep the Game Messages chat visible, unobstructed, and at normal interface scaling, then press Find chatbox.");
+      stopChatFindRetries();
+    }
   } catch (error) {
     setReaderStatus("offline", "Chat reader failed");
     log(`Chat reader error: ${error?.message || error}`);
+    stopChatFindRetries();
+  } finally {
+    chatFindInProgress = false;
   }
 }
 
@@ -193,7 +293,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   $("settingsForm").addEventListener("input", readSettingsFromForm);
   $("teamSize").addEventListener("change", readSettingsFromForm);
-  $("findChatButton").addEventListener("click", findChatbox);
+  $("findChatButton").addEventListener("click", () => {
+    stopChatFindRetries();
+    findChatbox({ retry: true });
+  });
+  $("movePrayerOverlayButton").addEventListener("click", () => {
+    if (!settings.showPrayerOverlay) return;
+    prayerOverlay.togglePlacement();
+    updateOverlayControls();
+  });
+  $("resetPrayerOverlayButton").addEventListener("click", () => {
+    prayerOverlay.resetPosition();
+    savePrayerOverlayPosition();
+  });
   $("compactButton").addEventListener("click", () => {
     settings.compact = !settings.compact;
     saveSettings(settings);
@@ -236,6 +348,20 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.reload();
   });
 
-  if (settings.autoFindChat && hasAlt1()) findChatbox();
+  prayerOverlay.addEventListener("move", () => {
+    settings.prayerOverlayX = prayerOverlay.x;
+    settings.prayerOverlayY = prayerOverlay.y;
+    updateOverlayControls();
+  });
+  prayerOverlay.addEventListener("placement", (event) => {
+    if (!event.detail.active) savePrayerOverlayPosition();
+    updateOverlayControls();
+  });
+  window.addEventListener("beforeunload", () => {
+    stopChatFindRetries();
+    prayerOverlay.stopDrawing();
+  });
+
+  if (settings.autoFindChat && hasAlt1()) findChatbox({ retry: true });
   else setReaderStatus("offline", hasAlt1() ? "Chat reader idle" : "Open inside Alt1");
 });

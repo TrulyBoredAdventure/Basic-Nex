@@ -130,3 +130,24 @@ select, input[type="text"] { width: 100%; padding: 8px 9px; border: 1px solid va
   .arena-map { width: min(230px, 100%); margin: 0 auto; }
   .header-actions { flex-direction: column; align-items: flex-end; }
 }
+
+.overlay-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.overlay-controls button {
+  flex: 1 1 140px;
+}
+
+.overlay-controls button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.overlay-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+}

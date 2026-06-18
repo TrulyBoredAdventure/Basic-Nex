@@ -7,18 +7,23 @@ export class NexChatReader extends EventTarget {
     this.found = false;
   }
 
+  getReaderConstructor() {
+    const library = window.Chatbox;
+    return library?.default || library?.ChatBoxReader || (typeof library === "function" ? library : null);
+  }
+
   initialize() {
-    const Chatbox = window.Chatbox;
+    const Reader = this.getReaderConstructor();
     const A1lib = window.A1lib;
 
-    if (!Chatbox || typeof Chatbox.default !== "function") {
+    if (typeof Reader !== "function") {
       throw new Error("Alt1 chatbox library failed to load. Reopen Basic Nex and try again.");
     }
     if (!A1lib || typeof A1lib.mixColor !== "function") {
       throw new Error("Alt1 base library failed to load. Reopen Basic Nex and try again.");
     }
 
-    this.reader = new Chatbox.default();
+    this.reader = new Reader();
     this.reader.readargs = {
       colors: [
         A1lib.mixColor(255, 255, 255),
@@ -27,9 +32,10 @@ export class NexChatReader extends EventTarget {
         A1lib.mixColor(127, 169, 255),
         A1lib.mixColor(202, 51, 152),
         A1lib.mixColor(235, 47, 47),
-        A1lib.mixColor(45, 186, 20)
-      ],
-      backwards: true
+        A1lib.mixColor(45, 186, 20),
+        A1lib.mixColor(255, 140, 56),
+        A1lib.mixColor(255, 255, 176)
+      ]
     };
     return this;
   }
@@ -38,17 +44,20 @@ export class NexChatReader extends EventTarget {
     if (!this.reader) this.initialize();
     this.dispatchEvent(new CustomEvent("status", { detail: { state: "searching", message: "Finding chatbox" } }));
 
-    this.reader.find();
-    this.found = Boolean(this.reader.pos && (this.reader.pos.mainbox || this.reader.pos.boxes?.length));
+    const result = this.reader.find();
+    const position = result || this.reader.pos;
+    this.found = Boolean(position?.mainbox || position?.boxes?.length);
 
-    if (this.found && this.reader.pos?.boxes?.length && !this.reader.pos.mainbox) {
-      this.reader.pos.mainbox = this.reader.pos.boxes[0];
+    if (this.found && position?.boxes?.length && !position.mainbox) {
+      position.mainbox = position.boxes.find((box) => box.type === "main") || position.boxes[0];
+      this.reader.pos = position;
     }
 
     this.dispatchEvent(new CustomEvent("status", {
       detail: {
         state: this.found ? "online" : "offline",
-        message: this.found ? "Chatbox found" : "Chatbox not found"
+        message: this.found ? "Chatbox found" : "Chatbox not found",
+        boxes: position?.boxes?.length || 0
       }
     }));
 
