@@ -13,6 +13,8 @@ Install it in Alt1 with:
 alt1://addapp/https://TrulyBoredAdventure.github.io/Basic-Nex/appconfig.json
 ```
 
+Alt1 Toolkit must already be installed. Open the link on the computer running RuneScape and approve the prompt to add Basic Nex.
+
 ## Current features
 
 - Solo and duo modes
@@ -53,7 +55,7 @@ For the most reliable chat detection:
 
 ## Testing
 
-The repository has no local build step. It uses browser modules and loads the official Alt1 packages from jsDelivr at runtime.
+The repository has no local build step. It loads pinned browser bundles for the official Alt1 packages from jsDelivr at runtime.
 
 Run the local state-machine tests with:
 

@@ -1,6 +1,3 @@
-const CHATBOX_MODULE_URL = "https://cdn.jsdelivr.net/npm/@alt1/chatbox@1.0.0-alpha.7/+esm";
-const BASE_MODULE_URL = "https://cdn.jsdelivr.net/npm/@alt1/base@1.0.0-alpha.7/+esm";
-
 export class NexChatReader extends EventTarget {
   constructor() {
     super();
@@ -10,43 +7,51 @@ export class NexChatReader extends EventTarget {
     this.found = false;
   }
 
-  async initialize() {
-    const [chatboxModule, baseModule] = await Promise.all([
-      import(CHATBOX_MODULE_URL),
-      import(BASE_MODULE_URL)
-    ]);
+  initialize() {
+    const Chatbox = window.Chatbox;
+    const A1lib = window.A1lib;
 
-    const Reader = chatboxModule.default || chatboxModule.ChatboxReader;
-    if (!Reader) throw new Error("Alt1 chatbox module did not expose ChatboxReader.");
-
-    this.reader = new Reader();
-    if (baseModule.mixColor) {
-      this.reader.readargs = {
-        colors: [
-          baseModule.mixColor(255, 255, 255),
-          baseModule.mixColor(255, 0, 0),
-          baseModule.mixColor(255, 255, 0),
-          baseModule.mixColor(127, 169, 255),
-          baseModule.mixColor(202, 51, 152),
-          baseModule.mixColor(235, 47, 47),
-          baseModule.mixColor(45, 186, 20)
-        ]
-      };
+    if (!Chatbox || typeof Chatbox.default !== "function") {
+      throw new Error("Alt1 chatbox library failed to load. Reopen Basic Nex and try again.");
     }
+    if (!A1lib || typeof A1lib.mixColor !== "function") {
+      throw new Error("Alt1 base library failed to load. Reopen Basic Nex and try again.");
+    }
+
+    this.reader = new Chatbox.default();
+    this.reader.readargs = {
+      colors: [
+        A1lib.mixColor(255, 255, 255),
+        A1lib.mixColor(255, 0, 0),
+        A1lib.mixColor(255, 255, 0),
+        A1lib.mixColor(127, 169, 255),
+        A1lib.mixColor(202, 51, 152),
+        A1lib.mixColor(235, 47, 47),
+        A1lib.mixColor(45, 186, 20)
+      ],
+      backwards: true
+    };
     return this;
   }
 
-  async find() {
-    if (!this.reader) await this.initialize();
+  find() {
+    if (!this.reader) this.initialize();
     this.dispatchEvent(new CustomEvent("status", { detail: { state: "searching", message: "Finding chatbox" } }));
-    const result = this.reader.find();
-    this.found = Boolean(result || this.reader.pos || this.reader.mainbox);
+
+    this.reader.find();
+    this.found = Boolean(this.reader.pos && (this.reader.pos.mainbox || this.reader.pos.boxes?.length));
+
+    if (this.found && this.reader.pos?.boxes?.length && !this.reader.pos.mainbox) {
+      this.reader.pos.mainbox = this.reader.pos.boxes[0];
+    }
+
     this.dispatchEvent(new CustomEvent("status", {
       detail: {
         state: this.found ? "online" : "offline",
         message: this.found ? "Chatbox found" : "Chatbox not found"
       }
     }));
+
     if (this.found) this.start();
     return this.found;
   }
