@@ -88,7 +88,7 @@ OCR matching ignores capitalization, punctuation, apostrophes, and timestamps.
 
 ## Prayer overlay placement
 
-Enable **Show prayer as a RuneScape screen overlay** in Settings. Select **Move prayer overlay**, move the mouse to the desired location inside RuneScape, then return to Basic Nex and select **Lock prayer overlay**. The saved position is reused the next time the app opens.
+Enable **Show prayer as a RuneScape screen overlay** in Settings and select **Move prayer overlay**. Move the mouse to the desired location inside RuneScape, then press **Alt+1** while the game is focused. The overlay locks immediately at that location and the saved position is reused the next time the app opens. The **Lock at current position** button remains available as a fallback.
 
 The next practical detection layer is optional screen calibration for boss-health thresholds. That would improve phase recovery when a dialogue line is missed. Exact game-tile highlighting should remain opt-in because it depends heavily on camera and interface configuration.
 

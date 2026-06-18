@@ -4,9 +4,29 @@ function mixColor(r, g, b, a = 255) {
   return (b << 0) + (g << 8) + (r << 16) + (a << 24);
 }
 
+function isUsablePoint(point) {
+  return Boolean(
+    point
+    && Number.isFinite(Number(point.x))
+    && Number.isFinite(Number(point.y))
+    && Number(point.x) >= 0
+    && Number(point.y) >= 0
+  );
+}
+
 function decodeMousePosition(value) {
   if (!Number.isInteger(value) || value === -1) return null;
   return { x: value >>> 16, y: value & 0xffff };
+}
+
+function getAlt1PressedPoint(event) {
+  if (isUsablePoint(event?.mouseRs)) {
+    return { x: Math.round(Number(event.mouseRs.x)), y: Math.round(Number(event.mouseRs.y)) };
+  }
+  if (isUsablePoint(event)) {
+    return { x: Math.round(Number(event.x)), y: Math.round(Number(event.y)) };
+  }
+  return null;
 }
 
 export class PrayerOverlay extends EventTarget {
@@ -56,7 +76,7 @@ export class PrayerOverlay extends EventTarget {
   stopDrawing() {
     if (this.drawTimer) window.clearInterval(this.drawTimer);
     this.drawTimer = null;
-    this.stopPlacement();
+    this.stopPlacement("disabled");
     this.clear();
   }
 
@@ -90,36 +110,54 @@ export class PrayerOverlay extends EventTarget {
   }
 
   togglePlacement() {
-    if (this.placing) {
-      this.stopPlacement();
-      return false;
-    }
-    this.startPlacement();
-    return true;
+    if (this.placing) return this.lockPlacement();
+    return this.startPlacement();
   }
 
   startPlacement() {
-    if (!this.enabled || !this.isAvailable()) return false;
+    if (!this.enabled || !this.isAvailable() || this.placing) return false;
     this.placing = true;
     this.dispatchEvent(new CustomEvent("placement", { detail: { active: true, x: this.x, y: this.y } }));
     this.placeTimer = window.setInterval(() => {
       const point = decodeMousePosition(window.alt1?.mousePosition);
       if (!point) return;
-      this.x = point.x + 16;
-      this.y = point.y + 16;
-      this.clampPosition();
-      this.draw();
-      this.dispatchEvent(new CustomEvent("move", { detail: { x: this.x, y: this.y } }));
+      this.setPositionFromPoint(point);
     }, 80);
     return true;
   }
 
-  stopPlacement() {
+  setPositionFromPoint(point) {
+    if (!isUsablePoint(point)) return false;
+    this.x = Math.round(Number(point.x)) + 16;
+    this.y = Math.round(Number(point.y)) + 16;
+    this.clampPosition();
+    this.draw();
+    this.dispatchEvent(new CustomEvent("move", { detail: { x: this.x, y: this.y } }));
+    return true;
+  }
+
+  lockFromAlt1Pressed(event) {
+    if (!this.placing) return false;
+    const point = getAlt1PressedPoint(event);
+    if (point) this.setPositionFromPoint(point);
+    return this.lockPlacement("alt1");
+  }
+
+  lockPlacement(reason = "button") {
+    if (!this.placing) return false;
+    this.stopPlacement(reason);
+    return true;
+  }
+
+  stopPlacement(reason = "stopped") {
     if (this.placeTimer) window.clearInterval(this.placeTimer);
     this.placeTimer = null;
-    if (!this.placing) return;
+    if (!this.placing) return false;
     this.placing = false;
-    this.dispatchEvent(new CustomEvent("placement", { detail: { active: false, x: this.x, y: this.y } }));
+    this.dispatchEvent(new CustomEvent("placement", {
+      detail: { active: false, x: this.x, y: this.y, reason }
+    }));
+    return true;
   }
 
   resetPosition() {
@@ -131,4 +169,4 @@ export class PrayerOverlay extends EventTarget {
   }
 }
 
-export { decodeMousePosition };
+export { decodeMousePosition, getAlt1PressedPoint };

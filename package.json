@@ -1,6 +1,6 @@
 {
   "name": "basic-nex",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "Alt1 solo and duo Nex encounter helper.",

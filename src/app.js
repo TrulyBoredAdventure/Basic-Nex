@@ -1,8 +1,8 @@
-import { NexEncounterEngine } from "./engine.js?v=0.1.2";
-import { SIMULATOR_EVENTS } from "./encounter-data.js?v=0.1.2";
-import { NexChatReader } from "./chat-reader.js?v=0.1.2";
-import { clearSettings, loadSettings, saveSettings } from "./settings.js?v=0.1.2";
-import { PrayerOverlay } from "./prayer-overlay.js?v=0.1.2";
+import { NexEncounterEngine } from "./engine.js?v=0.1.3";
+import { SIMULATOR_EVENTS } from "./encounter-data.js?v=0.1.3";
+import { NexChatReader } from "./chat-reader.js?v=0.1.3";
+import { clearSettings, loadSettings, saveSettings } from "./settings.js?v=0.1.3";
+import { PrayerOverlay } from "./prayer-overlay.js?v=0.1.3";
 
 const $ = (id) => document.getElementById(id);
 const engine = new NexEncounterEngine();
@@ -16,6 +16,7 @@ let lastSpokenEvent = null;
 let chatFindRetryTimer = null;
 let chatFindAttempts = 0;
 let chatFindInProgress = false;
+let removePrayerHotkeyListener = null;
 
 const elements = {
   app: $("app"), readerStatus: $("readerStatus"), phaseLabel: $("phaseLabel"), modeLabel: $("modeLabel"),
@@ -149,13 +150,13 @@ function updateOverlayControls() {
   if (!elements.movePrayerOverlayButton || !elements.prayerOverlayStatus) return;
   const enabled = Boolean(settings.showPrayerOverlay);
   elements.movePrayerOverlayButton.disabled = !enabled || !prayerOverlay.isAvailable();
-  elements.movePrayerOverlayButton.textContent = prayerOverlay.placing ? "Lock prayer overlay" : "Move prayer overlay";
+  elements.movePrayerOverlayButton.textContent = prayerOverlay.placing ? "Lock at current position" : "Move prayer overlay";
   if (!enabled) {
     elements.prayerOverlayStatus.textContent = "Enable the overlay to place it on the RuneScape screen.";
   } else if (!prayerOverlay.isAvailable()) {
     elements.prayerOverlayStatus.textContent = "Alt1 overlay permission is unavailable.";
   } else if (prayerOverlay.placing) {
-    elements.prayerOverlayStatus.textContent = "Move the mouse over RuneScape, then return here and click Lock prayer overlay.";
+    elements.prayerOverlayStatus.textContent = "Move the mouse over RuneScape and press Alt+1 to lock the overlay.";
   } else {
     elements.prayerOverlayStatus.textContent = `Position: ${prayerOverlay.x}, ${prayerOverlay.y}`;
   }
@@ -166,6 +167,49 @@ function savePrayerOverlayPosition() {
   settings.prayerOverlayY = prayerOverlay.y;
   saveSettings(settings);
   updateOverlayControls();
+}
+
+function registerPrayerOverlayHotkey() {
+  const handleAlt1Pressed = (event) => {
+    if (!prayerOverlay.placing) return;
+    if (prayerOverlay.lockFromAlt1Pressed(event)) {
+      log(`Prayer overlay locked at ${prayerOverlay.x}, ${prayerOverlay.y} with Alt+1.`);
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    const isAltOne = event.altKey && !event.repeat && (event.code === "Digit1" || event.key === "1");
+    if (!isAltOne || !prayerOverlay.placing) return;
+    event.preventDefault();
+    if (prayerOverlay.lockPlacement("keyboard")) {
+      log(`Prayer overlay locked at ${prayerOverlay.x}, ${prayerOverlay.y} with Alt+1.`);
+    }
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+
+  if (window.A1lib?.on && window.A1lib?.removeListener) {
+    window.A1lib.on("alt1pressed", handleAlt1Pressed);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.A1lib.removeListener("alt1pressed", handleAlt1Pressed);
+    };
+  }
+
+  if (window.alt1) {
+    if (!window.alt1.events) window.alt1.events = {};
+    if (!window.alt1.events.alt1pressed) window.alt1.events.alt1pressed = [];
+    window.alt1.events.alt1pressed.push(handleAlt1Pressed);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      const listeners = window.alt1?.events?.alt1pressed;
+      if (!Array.isArray(listeners)) return;
+      const index = listeners.indexOf(handleAlt1Pressed);
+      if (index >= 0) listeners.splice(index, 1);
+    };
+  }
+
+  return () => window.removeEventListener("keydown", handleKeyDown);
 }
 
 function getDuoAdvice(phase, mechanic, role) {
@@ -289,6 +333,7 @@ document.addEventListener("DOMContentLoaded", () => {
   applySettingsToForm();
   setupTabs();
   setupSimulator();
+  removePrayerHotkeyListener = registerPrayerOverlayHotkey();
   render();
 
   $("settingsForm").addEventListener("input", readSettingsFromForm);
@@ -359,6 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   window.addEventListener("beforeunload", () => {
     stopChatFindRetries();
+    removePrayerHotkeyListener?.();
     prayerOverlay.stopDrawing();
   });
 
