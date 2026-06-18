@@ -5,6 +5,12 @@ Basic Nex is an Alt1 Toolkit helper for the standard RuneScape Nex encounter. It
 Repository owner: `TrulyBoredAdventure`  
 Repository name: `Basic-Nex`
 
+## Installation
+
+[Install Basic Nex in Alt1](alt1://addapp/https://trulyboredadventure.github.io/Basic-Nex/appconfig.json)
+
+Alt1 Toolkit must already be installed. Open the link on the computer running RuneScape and approve the prompt to add Basic Nex.
+
 ## Current features
 
 - Solo and duo modes
