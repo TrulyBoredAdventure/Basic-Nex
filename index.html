@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17131f">
+  <title>Basic Nex</title>
+  <link rel="icon" href="./assets/icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">TRULYBOREDADVENTURE</p>
+        <h1>Basic Nex</h1>
+      </div>
+      <div class="header-actions">
+        <span id="readerStatus" class="status-pill status-offline">Chat reader offline</span>
+        <button id="compactButton" class="icon-button" type="button" title="Toggle compact view" aria-label="Toggle compact view">Compact</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Basic Nex sections">
+      <button class="tab active" type="button" data-tab="fight">Fight</button>
+      <button class="tab" type="button" data-tab="settings">Settings</button>
+      <button class="tab" type="button" data-tab="diagnostics">Diagnostics</button>
+    </nav>
+
+    <main>
+      <section id="fightTab" class="tab-panel active">
+        <div id="callout" class="callout callout-idle">
+          <div class="callout-topline">
+            <span id="phaseLabel" class="phase-chip">WAITING</span>
+            <span id="modeLabel" class="mode-label">SOLO · RANGED</span>
+          </div>
+          <h2 id="instructionTitle">Open Nex and keep game messages visible</h2>
+          <p id="instructionBody">The helper will detect Nex's dialogue, track the phase, and update the next mechanic automatically.</p>
+        </div>
+
+        <div class="fight-grid">
+          <section class="card next-card">
+            <p class="card-label">Next mechanic</p>
+            <h3 id="nextMechanic">Waiting for encounter</h3>
+            <p id="nextTiming" class="muted">No rotation synced</p>
+          </section>
+
+          <section class="card prayer-card">
+            <p class="card-label">Recommended prayer</p>
+            <div class="prayer-row">
+              <div id="prayerIcon" class="prayer-icon">—</div>
+              <div>
+                <h3 id="prayerName">None</h3>
+                <p id="prayerNote" class="muted">Start the encounter to receive a recommendation.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="card ability-card">
+            <p class="card-label">Ability response</p>
+            <h3 id="abilityTitle">Ready defensives and movement</h3>
+            <p id="abilityBody" class="muted">Recommendations are mechanic-based and do not activate abilities for you.</p>
+          </section>
+
+          <section class="card target-card">
+            <p class="card-label">Target</p>
+            <h3 id="targetName">Nex</h3>
+            <p id="targetNote" class="muted">The active mage will appear here at each threshold.</p>
+          </section>
+        </div>
+
+        <section class="card arena-card">
+          <div class="section-heading">
+            <div>
+              <p class="card-label">Positioning guide</p>
+              <h3 id="positionTitle">Outer edge, clear of the centre lanes</h3>
+            </div>
+            <span id="positionBadge" class="position-badge">GENERAL</span>
+          </div>
+          <div class="arena-layout">
+            <div id="arenaMap" class="arena-map" role="img" aria-label="Top-down Nex arena positioning guide">
+              <div class="lane lane-horizontal"></div>
+              <div class="lane lane-vertical"></div>
+              <div class="arena-centre">NEX</div>
+              <div class="quadrant quadrant-nw" data-position="northwest"><span>Fumus</span><small>NW</small></div>
+              <div class="quadrant quadrant-ne" data-position="northeast"><span>Umbra</span><small>NE</small></div>
+              <div class="quadrant quadrant-se" data-position="southeast"><span>Cruor</span><small>SE</small></div>
+              <div class="quadrant quadrant-sw" data-position="southwest"><span>Glacies</span><small>SW</small></div>
+            </div>
+            <div>
+              <p id="positionBody">Stay near the outer wall and avoid standing in the north/south/east/west lanes through the centre.</p>
+              <div id="duoAdvice" class="duo-advice hidden"></div>
+            </div>
+          </div>
+        </section>
+
+        <div class="fight-actions">
+          <button id="findChatButton" class="primary-button" type="button">Find chatbox</button>
+          <button id="resetFightButton" class="secondary-button" type="button">Reset fight</button>
+        </div>
+      </section>
+
+      <section id="settingsTab" class="tab-panel">
+        <form id="settingsForm" class="settings-grid">
+          <section class="card settings-card">
+            <h2>Encounter</h2>
+            <label>
+              Team size
+              <select id="teamSize" name="teamSize">
+                <option value="solo">Solo</option>
+                <option value="duo">Duo</option>
+              </select>
+            </label>
+            <label id="duoRoleRow" class="hidden">
+              Duo role
+              <select id="duoRole" name="duoRole">
+                <option value="aggro">Aggro / lurer</option>
+                <option value="partner">Partner / damage</option>
+              </select>
+            </label>
+            <label>
+              Combat style
+              <select id="combatStyle" name="combatStyle">
+                <option value="ranged">Ranged</option>
+                <option value="necromancy">Necromancy</option>
+                <option value="magic">Magic</option>
+                <option value="melee">Melee</option>
+              </select>
+            </label>
+            <label>
+              Guidance level
+              <select id="guidanceLevel" name="guidanceLevel">
+                <option value="basic">Basic</option>
+                <option value="detailed">Detailed</option>
+              </select>
+            </label>
+          </section>
+
+          <section class="card settings-card">
+            <h2>Alerts</h2>
+            <label class="toggle-row"><input id="showPrayer" type="checkbox"> <span>Show prayer recommendations</span></label>
+            <label class="toggle-row"><input id="showAbilities" type="checkbox"> <span>Show ability recommendations</span></label>
+            <label class="toggle-row"><input id="showPosition" type="checkbox"> <span>Show standing and lure locations</span></label>
+            <label class="toggle-row"><input id="voiceAlerts" type="checkbox"> <span>Speak urgent mechanic calls</span></label>
+            <label class="toggle-row"><input id="autoFindChat" type="checkbox"> <span>Automatically find the chatbox on launch</span></label>
+          </section>
+
+          <section class="card settings-card full-width">
+            <h2>Ability wording</h2>
+            <p class="muted">These optional fields let you align the helper with your current action bar after the 2026 combat changes. Leave them blank to use generic mechanic advice.</p>
+            <div class="custom-ability-grid">
+              <label>Emergency defensive<input id="customDefensive" type="text" maxlength="60" placeholder="Example: Resonance / Reflect"></label>
+              <label>Movement ability<input id="customMovement" type="text" maxlength="60" placeholder="Example: Surge / Dive"></label>
+              <label>Blood-phase burst<input id="customBurst" type="text" maxlength="80" placeholder="Your preferred non-bleed burst"></label>
+            </div>
+          </section>
+        </form>
+      </section>
+
+      <section id="diagnosticsTab" class="tab-panel">
+        <section class="card diagnostics-card">
+          <div class="section-heading">
+            <div>
+              <p class="card-label">Reader diagnostics</p>
+              <h2>Detection status</h2>
+            </div>
+            <button id="clearLogButton" class="secondary-button" type="button">Clear log</button>
+          </div>
+          <dl class="diagnostic-list">
+            <div><dt>Alt1 detected</dt><dd id="diagAlt1">No</dd></div>
+            <div><dt>Chatbox found</dt><dd id="diagChatFound">No</dd></div>
+            <div><dt>Last matched event</dt><dd id="diagLastEvent">None</dd></div>
+            <div><dt>Last OCR line</dt><dd id="diagLastLine">None</dd></div>
+          </dl>
+          <pre id="eventLog" class="event-log" aria-live="polite"></pre>
+        </section>
+
+        <section class="card diagnostics-card">
+          <p class="card-label">Test without entering the arena</p>
+          <h2>Event simulator</h2>
+          <p class="muted">These controls only feed test dialogue into the local encounter engine. They do not interact with RuneScape.</p>
+          <div id="simulatorButtons" class="simulator-buttons"></div>
+        </section>
+
+        <section class="card diagnostics-card danger-card">
+          <p class="card-label">Local data</p>
+          <h2>Reset saved settings</h2>
+          <p class="muted">This removes Basic Nex settings and diagnostics stored in this browser.</p>
+          <button id="resetDataButton" class="danger-button" type="button">Reset local data</button>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

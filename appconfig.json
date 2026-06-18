@@ -1,0 +1,16 @@
+{
+  "appName": "Basic Nex",
+  "description": "Automated solo and duo Nex mechanic, prayer, ability, and positioning guidance.",
+  "appUrl": "./index.html",
+  "configUrl": "./appconfig.json",
+  "iconUrl": "./assets/icon.png",
+  "defaultWidth": 520,
+  "defaultHeight": 720,
+  "minWidth": 300,
+  "minHeight": 220,
+  "maxWidth": 1000,
+  "maxHeight": 1200,
+  "requestHandlers": [],
+  "activators": [],
+  "permissions": "pixel,gamestate,overlay"
+}
